@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ["findarticles-provider-itunes-breathing.trycloudflare.com"],
+    allowedHosts: ["tablet-insight-champion-change.trycloudflare.com"],
     cors: true,
   },
 });

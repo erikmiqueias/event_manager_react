@@ -41,7 +41,18 @@ const Layout = ({ children }: LayoutProps) => {
         }
       );
       const data = await response.json();
-      setUser(data);
+
+      const camelCaseData = {
+        userName: data.username,
+        email: data.email,
+        phoneNumber: data.phone_number,
+        address: data.address,
+        bio: data.bio,
+        imageUrl: data.image_url,
+        jobTitle: data.job_title,
+        company: data.company,
+      };
+      setUser(camelCaseData as UserProfile);
     };
 
     if (user === null) {
@@ -89,7 +100,7 @@ const Layout = ({ children }: LayoutProps) => {
               variant="ghost"
               size="sm"
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden"
+              className="lg:hidden cursor-pointer"
             >
               <X className="h-4 w-4 cursor-pointer" />
             </Button>
@@ -125,14 +136,17 @@ const Layout = ({ children }: LayoutProps) => {
           <div className="absolute bottom-4 left-4 right-4">
             <div className="flex items-center space-x-3 p-3 bg-accent rounded-md">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.image_url ? user.image_url : ""} />
+                <AvatarImage
+                  className="h-full w-full object-cover"
+                  src={user?.imageUrl ? user.imageUrl : ""}
+                />
                 <AvatarFallback>
-                  {user?.image_url ? user.image_url : "JS"}
+                  {user?.imageUrl ? user.imageUrl : "JS"}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
-                  {user?.username.split(" ")[0].toUpperCase()}
+                  {user?.userName?.split(" ")[0].toUpperCase()}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
                   {user?.email}
@@ -157,13 +171,16 @@ const Layout = ({ children }: LayoutProps) => {
 
             <div className="flex items-center space-x-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.image_url ? user.image_url : ""} />
+                <AvatarImage
+                  className="h-full w-full object-cover"
+                  src={user?.imageUrl ? user.imageUrl : ""}
+                />
                 <AvatarFallback>
-                  {user?.image_url ? user.image_url : "JS"}
+                  {user?.imageUrl ? user.imageUrl : "JS"}
                 </AvatarFallback>
               </Avatar>
               <span className="text-sm font-medium hidden sm:block">
-                {user?.username.split(" ")[0].toUpperCase()}
+                {user?.userName?.split(" ")[0].toUpperCase()}
               </span>
             </div>
           </div>

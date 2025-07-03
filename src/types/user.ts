@@ -1,11 +1,11 @@
 export type UserProfile = {
   id: string;
-  username: string;
+  userName: string;
   email: string;
-  phone_number: string;
+  phoneNumber: string;
   address: string;
   bio: string;
-  image_url: string;
-  job_title: string;
+  imageUrl: string;
+  jobTitle: string;
   company: string;
 };

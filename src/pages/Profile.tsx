@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -24,22 +24,81 @@ import {
 import Layout from "@/components/Layout";
 import type { UserProfile } from "@/types/user";
 import useAuthentication from "@/hooks/useAuthentication";
+import { toast } from "sonner";
+import React from "react";
 
 const Profile = () => {
   const [editing, setEditing] = useState<string | null>(null);
   const [profileData, setProfileData] = useState<Omit<UserProfile, "id">>({
-    username: "John Doe",
-    email: "bZ2tI@example.com",
-    phone_number: "+1 (123) 456-7890",
-    address: "123 Main Street, City",
-    bio: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-    image_url: "https://via.placeholder.com/150",
-    job_title: "Software Engineer",
-    company: "Example Company",
+    userName: "",
+    email: "",
+    phoneNumber: "",
+    address: "",
+    bio: "",
+    imageUrl: "",
+    jobTitle: "",
+    company: "",
   });
 
   const [tempData, setTempData] = useState(profileData);
   const { userId } = useAuthentication();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleAvatarEditClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const MAX_SIZE = 10 * 1024 * 1024;
+    const file = e.target?.files?.[0];
+    if (!file || !userId) return;
+
+    if (file.size > MAX_SIZE) {
+      toast.error("Arquivo muito grande! Máximo permitido: 10MB", {
+        position: "top-center",
+        duration: 4000,
+        style: { color: "red", fontWeight: "bolder" },
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_REACT_APP_BACKEND_URL}/user/edit/${userId}`,
+        {
+          method: "PATCH",
+          body: formData,
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Erro ao enviar imagem");
+      }
+
+      const data = await response.json();
+
+      if (data.image_url) {
+        setProfileData((prev) => ({ ...prev, imageUrl: data.image_url }));
+      }
+
+      toast.success("Imagem atualizada com sucesso!", {
+        duration: 3000,
+        style: { color: "green", fontWeight: "bolder" },
+        position: "top-center",
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao enviar imagem", {
+        duration: 4000,
+        style: { color: "red", fontWeight: "bolder" },
+        position: "top-center",
+      });
+    }
+  };
 
   const handleEdit = (field: string) => {
     setEditing(field);
@@ -48,7 +107,6 @@ const Profile = () => {
 
   useEffect(() => {
     if (!userId) return;
-    console.log(userId);
     const fetchUserProfile = async () => {
       const response = await fetch(
         `${import.meta.env.VITE_REACT_APP_BACKEND_URL}/user/${userId}`,
@@ -61,15 +119,81 @@ const Profile = () => {
         }
       );
       const data = await response.json();
-      setProfileData(data);
+
+      const camelCaseData = {
+        userName: data.user_name,
+        email: data.email,
+        phoneNumber: data.phone_number,
+        address: data.address,
+        bio: data.bio,
+        imageUrl: data.image_url,
+        jobTitle: data.job_title,
+        company: data.company,
+      };
+      setProfileData(camelCaseData);
     };
 
     fetchUserProfile();
-  }, [profileData, userId]);
+  }, [userId]);
 
-  const handleSave = (field: string) => {
-    setProfileData({ ...profileData, [field]: (tempData as any)[field] });
+  const fieldMap = {
+    name: "userName",
+    email: "email",
+    phone: "phoneNumber",
+    location: "address",
+    position: "jobTitle",
+    company: "company",
+    bio: "bio",
+  };
+
+  const handleSave = async (field: string) => {
+    const mappedField = (fieldMap as Record<string, keyof UserProfile>)[field];
+    if (!mappedField) return;
+
     setEditing(null);
+
+    const updateData = {
+      [mappedField]: (tempData as UserProfile)[mappedField],
+    };
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_REACT_APP_BACKEND_URL}/user/edit/${userId}`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateData),
+        }
+      );
+
+      if (!response.ok) throw new Error("Erro ao atualizar dados");
+
+      setProfileData((prev) => ({
+        ...prev,
+        [mappedField]: (tempData as UserProfile)[mappedField],
+      }));
+
+      toast.success("Dados atualizados com sucesso!", {
+        duration: 3000,
+        style: {
+          color: "green",
+          fontWeight: "bolder",
+        },
+        position: "top-center",
+      });
+    } catch {
+      toast.error("Ocorreu um erro ao atualizar os dados.", {
+        duration: 5000,
+        style: {
+          color: "red",
+          fontWeight: "bolder",
+        },
+        position: "top-center",
+      });
+    }
   };
 
   const handleCancel = () => {
@@ -95,21 +219,47 @@ const Profile = () => {
               <CardContent className="pt-6">
                 <div className="flex flex-col items-center space-y-4">
                   <div className="relative">
-                    <Avatar className="w-24 h-24">
-                      <AvatarImage src="/placeholder-avatar.jpg" />
+                    <Avatar
+                      className="w-24 h-24 rounded-full border-2 border-gray-600 overflow-hidden"
+                      aria-description="Profile Picture"
+                    >
+                      <AvatarImage
+                        className="w-full h-full object-cover"
+                        src={
+                          profileData.imageUrl
+                            ? profileData.imageUrl
+                            : `https://imgs.search.brave.com/LfT4VM9SMkLyEHKwbi3VoUjiHGvy38OBUR2EE5tN3D4/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9tZWRp/YS5pc3RvY2twaG90/by5jb20vaWQvMTIy/MzY3MTM5Mi92ZWN0/b3IvZGVmYXVsdC1w/cm9maWxlLXBpY3R1/cmUtYXZhdGFyLXBo/b3RvLXBsYWNlaG9s/ZGVyLXZlY3Rvci1p/bGx1c3RyYXRpb24u/anBnP3M9NjEyeDYx/MiZ3PTAmaz0yMCZj/PXMwYVRkbVQ1YVU2/YjhvdDdWS20xMURl/SUQ2TmN0UkNwQjc1/NXJBMUJJUDA9https://imgs.search.brave.com/LfT4VM9SMkLyEHKwbi3VoUjiHGvy38OBUR2EE5tN3D4/rs:fit:500:0:1:0/g:ce/aHR0cHM6Ly9tZWRp/YS5pc3RvY2twaG90
+                            /by5jb20vaWQvMTIy/MzY3MTM5Mi92ZWN0/b3IvZGVmYXVsdC1w/cm9maWxlLXBpY3R1/cmUtYXZhdGFyLXBo
+                            /b3RvLXBsYWNlaG9s/ZGVyLXZlY3Rvci1p/bGx1c3RyYXRpb24u/anBnP3M9NjEyeDYx/MiZ3PTAmaz0yMCZj/PXMwYVRkbVQ1YVU2/YjhvdDdWS20xMURl
+                            /SUQ2TmN0UkNwQjc1/NXJBMUJJUDA9`
+                        }
+                      />
                       <AvatarFallback className="text-lg">JS</AvatarFallback>
                     </Avatar>
+
+                    {/* Botão de editar que abre o seletor de arquivo */}
                     <Button
                       size="sm"
-                      className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0"
+                      className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0 cursor-pointer"
+                      onClick={handleAvatarEditClick}
                     >
                       <Edit className="w-3 h-3" />
                     </Button>
+
+                    {/* Input de arquivo oculto */}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
                   </div>
+
                   <div className="text-center">
-                    <h3 className="font-semibold">{profileData.username}</h3>
+                    <h3 className="font-semibold">{profileData.userName}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {profileData.job_title}
+                      {profileData.jobTitle}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {profileData.company}
@@ -141,18 +291,18 @@ const Profile = () => {
                       </Label>
                       {editing === "name" ? (
                         <Input
-                          value={tempData.username}
+                          value={tempData.userName}
                           onChange={(e) =>
                             setTempData({
                               ...tempData,
-                              username: e.target.value,
+                              userName: e.target.value,
                             })
                           }
                           className="mt-1"
                         />
                       ) : (
                         <p className="text-sm text-muted-foreground mt-1">
-                          {profileData.username}
+                          {profileData.userName}
                         </p>
                       )}
                     </div>
@@ -238,18 +388,18 @@ const Profile = () => {
                       <Label className="text-sm font-medium">Telefone</Label>
                       {editing === "phone" ? (
                         <Input
-                          value={tempData.phone_number}
+                          value={tempData.phoneNumber}
                           onChange={(e) =>
                             setTempData({
                               ...tempData,
-                              phone_number: e.target.value,
+                              phoneNumber: e.target.value,
                             })
                           }
                           className="mt-1"
                         />
                       ) : (
                         <p className="text-sm text-muted-foreground mt-1">
-                          {profileData.phone_number}
+                          {profileData.phoneNumber}
                         </p>
                       )}
                     </div>
@@ -399,18 +549,18 @@ const Profile = () => {
                       <Label className="text-sm font-medium">Cargo</Label>
                       {editing === "position" ? (
                         <Input
-                          value={tempData.job_title}
+                          value={tempData.jobTitle}
                           onChange={(e) =>
                             setTempData({
                               ...tempData,
-                              job_title: e.target.value,
+                              jobTitle: e.target.value,
                             })
                           }
                           className="mt-1"
                         />
                       ) : (
                         <p className="text-sm text-muted-foreground mt-1">
-                          {profileData.job_title}
+                          {profileData.jobTitle}
                         </p>
                       )}
                     </div>
@@ -456,7 +606,7 @@ const Profile = () => {
                   <div className="flex-1">
                     {editing === "bio" ? (
                       <Textarea
-                        value={tempData.bio}
+                        value={tempData.bio ?? ""}
                         onChange={(e) =>
                           setTempData({ ...tempData, bio: e.target.value })
                         }
