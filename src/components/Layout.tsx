@@ -6,6 +6,7 @@ import { Home, Calendar, Users, Info, User, Menu, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserProfile } from "@/types/user";
 import useAuthentication from "@/hooks/useAuthentication";
+import { toast } from "sonner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,7 +25,7 @@ const Layout = ({ children }: LayoutProps) => {
     { name: "Criar Evento", href: "/create-event", icon: Plus },
     { name: "Sobre", href: "/about", icon: Info },
     { name: "Detalhes da Conta", href: "/profile", icon: User },
-    { name: "Sair", href: "/login", icon: X },
+    { name: "Sair", href: "/", icon: X },
   ];
 
   useEffect(() => {
@@ -74,9 +75,9 @@ const Layout = ({ children }: LayoutProps) => {
       }
     );
     if (response.ok) {
-      window.location.href = "/login";
+      window.location.href = "/";
     } else {
-      console.error("Logout failed");
+      toast.error("Erro ao sair da sessão!");
     }
   };
 
