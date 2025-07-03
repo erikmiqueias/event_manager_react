@@ -12,16 +12,10 @@ import Loading from "@/components/Loading";
 import { toast } from "sonner";
 
 const ParticipatedEvents = () => {
-  const [participatedEvents, setParticipatedEvents] = useState<Event[] | []>(
-    []
-  );
+  const [participatedEvents, setParticipatedEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const { userId } = useAuthentication();
-
-  const upcomingEvents = participatedEvents!.filter(
-    (event) => new Date(event.event_date) > new Date()
-  );
 
   useEffect(() => {
     const fetchEventsAttended = async () => {
@@ -39,11 +33,15 @@ const ParticipatedEvents = () => {
             },
           }
         );
-        const data = await response.json();
-        setParticipatedEvents(data);
+
+        if (response.ok) {
+          const data = await response.json();
+          setParticipatedEvents(data);
+        }
       } catch (err) {
         toast.error("Erro ao buscar os eventos");
         setParticipatedEvents([]);
+        console.error(err);
       } finally {
         setIsLoading(false);
       }
@@ -52,18 +50,26 @@ const ParticipatedEvents = () => {
     fetchEventsAttended();
   }, [userId]);
 
+  const upcomingEvents = participatedEvents.filter(
+    (event) => new Date(event.event_date) > new Date()
+  );
+
+  const pastEvents = participatedEvents.filter(
+    (event) => new Date(event.event_date) <= new Date()
+  );
+
   const renderEventCard = (event: Event) => (
     <Card key={event.id} className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{event.event_name}</CardTitle>
+          <CardTitle className="text-lg">{event?.event_name}</CardTitle>
           <div className="flex items-center space-x-2">
             <Badge
               variant={
-                event.event_publicity === "PUBLIC" ? "default" : "secondary"
+                event?.event_publicity === "PUBLIC" ? "default" : "secondary"
               }
             >
-              {event.event_publicity === "PUBLIC" ? (
+              {event?.event_publicity === "PUBLIC" ? (
                 <>
                   <Globe className="w-3 h-3 mr-1" /> Público
                 </>
@@ -73,11 +79,6 @@ const ParticipatedEvents = () => {
                 </>
               )}
             </Badge>
-            {/* {event.attended && (
-              <Badge variant="outline" className="text-green-600">
-                Participou
-              </Badge>
-            )} */}
           </div>
         </div>
       </CardHeader>
@@ -85,37 +86,32 @@ const ParticipatedEvents = () => {
         <div className="space-y-2">
           <div className="flex items-center text-sm text-muted-foreground">
             <Clock className="w-4 h-4 mr-2" />
-            {new Date(event.event_date).toLocaleDateString("pt-BR")} às{" "}
-            {new Date(event.event_date).toLocaleTimeString("pt-BR", {
+            {new Date(event?.event_date).toLocaleDateString("pt-BR")} às{" "}
+            {new Date(event?.event_date).toLocaleTimeString("pt-BR", {
               hour: "2-digit",
               minute: "2-digit",
             })}
           </div>
           <div className="flex items-center text-sm text-muted-foreground">
             <MapPin className="w-4 h-4 mr-2" />
-            {event.event_local}
+            {event?.event_local}
           </div>
           <div className="flex items-center text-sm text-muted-foreground">
             <Users className="w-4 h-4 mr-2" />
-            {event.max_participants} participantes
+            {event?.max_participants} participantes
           </div>
         </div>
 
         <div className="flex items-center justify-between pt-2">
           <Badge variant="outline">
-            {formatDuration(Number(event.duration))}
+            {formatDuration(Number(event?.duration))}
           </Badge>
           <div className="flex space-x-2">
-            <Link to={`/event/${event.id}`} state={{ event }}>
+            <Link to={`/event/${event?.id}`} state={{ event }}>
               <Button className="cursor-pointer" variant="outline" size="sm">
                 Ver Detalhes
               </Button>
             </Link>
-            {/* {!event.attended && new Date(event.time) > new Date() && (
-              <Button size="sm" variant="destructive">
-                Cancelar
-              </Button>
-            )} */}
           </div>
         </div>
       </CardContent>
@@ -142,22 +138,7 @@ const ParticipatedEvents = () => {
           </div>
         )}
 
-        {/* Upcoming Events */}
-        {upcomingEvents.length > 0 && (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-xl font-semibold">Próximos Eventos</h2>
-              <p className="text-sm text-muted-foreground">
-                Eventos em que você está inscrito
-              </p>
-            </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {upcomingEvents.map(renderEventCard)}
-            </div>
-          </div>
-        )}
-
-        {participatedEvents?.length === 0 && (
+        {!isLoading && participatedEvents.length === 0 && (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="text-center space-y-4">
@@ -179,6 +160,24 @@ const ParticipatedEvents = () => {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {!isLoading && upcomingEvents.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Próximos Eventos</h2>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {upcomingEvents.map(renderEventCard)}
+            </div>
+          </div>
+        )}
+
+        {!isLoading && pastEvents.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Eventos Passados</h2>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {pastEvents.map(renderEventCard)}
+            </div>
+          </div>
         )}
       </div>
     </Layout>
